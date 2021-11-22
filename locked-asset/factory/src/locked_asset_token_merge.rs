@@ -193,13 +193,13 @@ pub trait LockedAssetTokenMergeModule:
             }
         });
 
-        //Compute the sum of leftover percents
+        //Compute the leftover percent
         let mut sum_of_new_percents = 0u8;
         for milestone in unlock_milestones_merged.iter() {
             sum_of_new_percents += milestone.unlock_percent;
         }
 
-        //Add the remaining epochs to all sorted entries
+        //Spread the leftover percent to sorted entries in order
         while sum_of_new_percents != 0 {
             for index in 0..unlock_milestones_merged.len() {
                 if sum_of_new_percents == 0 {
