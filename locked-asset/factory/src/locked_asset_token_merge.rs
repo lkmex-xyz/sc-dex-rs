@@ -174,7 +174,7 @@ pub trait LockedAssetTokenMergeModule:
             ArrayVec::<UnlockMilestone, MAX_MILESTONES_IN_SCHEDULE>::new();
         for el in unlock_epoch_amount_merged.iter() {
             if el.amount != BigUint::zero() {
-                let unlock_percent = &(&el.amount * 100u64) / &sum;
+                let unlock_percent = &(&el.amount * PERCENTAGE_TOTAL) / &sum;
 
                 //Accumulate even the percents of 0
                 unlock_milestones_merged.push(UnlockMilestone {
@@ -198,7 +198,7 @@ pub trait LockedAssetTokenMergeModule:
         for milestone in unlock_milestones_merged.iter() {
             sum_of_new_percents += milestone.unlock_percent;
         }
-        let mut leftover = 100u8 - sum_of_new_percents;
+        let mut leftover = PERCENTAGE_TOTAL as u8 - sum_of_new_percents;
 
         //Spread the leftover percent to sorted entries in order
         while leftover != 0 {
@@ -223,20 +223,8 @@ pub trait LockedAssetTokenMergeModule:
             }
         }
 
-        let mut first_element = new_unlock_milestones.get(0).unwrap();
-        first_element.unlock_percent += PERCENTAGE_TOTAL as u8 - sum_of_new_percents;
-
-        let mut new_unlocks = ManagedVec::new();
-        new_unlocks.push(first_element);
-
-        for (index, elem) in new_unlock_milestones.iter().enumerate() {
-            if index != 0 {
-                new_unlocks.push(elem);
-            }
-        }
-
         Ok(UnlockSchedule {
-            unlock_milestones: new_unlocks,
+            unlock_milestones: new_unlock_milestones,
         })
     }
 }
