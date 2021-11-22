@@ -185,7 +185,7 @@ pub trait LockedAssetTokenMergeModule:
         }
         let mut leftover = PERCENTAGE_TOTAL as u8 - sum_of_new_percents;
 
-        //Spread the leftover percent to sorted entries in order
+        //Spread the leftover percent one by one to the minimum percent entry
         while leftover != 0 {
             let mut min_index = 0;
             let mut min_milestone = unlock_milestones_merged[0];
@@ -205,9 +205,6 @@ pub trait LockedAssetTokenMergeModule:
             leftover -= 1;
             unlock_milestones_merged[min_index].unlock_percent += 1;
         }
-
-        //Re-sort the milestones by epoch again
-        unlock_milestones_merged.sort_unstable_by(|a, b| a.unlock_epoch.cmp(&b.unlock_epoch));
 
         //Remove the percents of 0 that were previously considered
         let mut new_unlock_milestones = ManagedVec::new();
