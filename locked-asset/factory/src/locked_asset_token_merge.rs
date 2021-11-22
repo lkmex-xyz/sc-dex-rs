@@ -198,15 +198,16 @@ pub trait LockedAssetTokenMergeModule:
         for milestone in unlock_milestones_merged.iter() {
             sum_of_new_percents += milestone.unlock_percent;
         }
+        let mut leftover = 100u8 - sum_of_new_percents;
 
         //Spread the leftover percent to sorted entries in order
-        while sum_of_new_percents != 0 {
+        while leftover != 0 {
             for index in 0..unlock_milestones_merged.len() {
-                if sum_of_new_percents == 0 {
+                if leftover == 0 {
                     break;
                 }
 
-                sum_of_new_percents -= 1;
+                leftover -= 1;
                 unlock_milestones_merged[index].unlock_percent += 1;
             }
         }
