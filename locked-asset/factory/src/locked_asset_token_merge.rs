@@ -1,8 +1,6 @@
 elrond_wasm::imports!();
 elrond_wasm::derive_imports!();
 
-use core::cmp::Ordering;
-
 use arrayvec::ArrayVec;
 
 use common_structs::{LockedAssetTokenAttributes, UnlockMilestone, UnlockSchedule};
@@ -184,15 +182,6 @@ pub trait LockedAssetTokenMergeModule:
             }
         }
 
-        //Sort ascending by percent (if equal, sort by epoch)
-        unlock_milestones_merged.sort_unstable_by(|a, b| {
-            if a.unlock_percent.cmp(&b.unlock_percent) == Ordering::Equal {
-                a.unlock_epoch.cmp(&b.unlock_epoch)
-            } else {
-                a.unlock_percent.cmp(&b.unlock_percent)
-            }
-        });
-
         //Compute the leftover percent
         let mut sum_of_new_percents = 0u8;
         for milestone in unlock_milestones_merged.iter() {
@@ -202,14 +191,21 @@ pub trait LockedAssetTokenMergeModule:
 
         //Spread the leftover percent to sorted entries in order
         while leftover != 0 {
+            let mut min_index = 0;
+            let mut min_milestone = unlock_milestones_merged[0];
             for index in 0..unlock_milestones_merged.len() {
-                if leftover == 0 {
-                    break;
+                let lesser_percent =
+                    unlock_milestones_merged[index].unlock_percent < min_milestone.unlock_percent;
+                let lesser_epoch =
+                    unlock_milestones_merged[index].unlock_epoch < min_milestone.unlock_epoch;
+                if lesser_percent && lesser_epoch {
+                    min_index = index;
+                    min_milestone = unlock_milestones_merged[index];
                 }
-
-                leftover -= 1;
-                unlock_milestones_merged[index].unlock_percent += 1;
             }
+
+            leftover -= 1;
+            unlock_milestones_merged[min_index].unlock_percent += 1;
         }
 
         //Re-sort the milestones by epoch again
