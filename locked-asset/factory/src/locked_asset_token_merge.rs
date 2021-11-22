@@ -194,9 +194,11 @@ pub trait LockedAssetTokenMergeModule:
             for index in 0..unlock_milestones_merged.len() {
                 let lesser_percent =
                     unlock_milestones_merged[index].unlock_percent < min_milestone.unlock_percent;
+                let equal_percent =
+                    unlock_milestones_merged[index].unlock_percent = min_milestone.unlock_percent;
                 let lesser_epoch =
                     unlock_milestones_merged[index].unlock_epoch < min_milestone.unlock_epoch;
-                if lesser_percent && lesser_epoch {
+                if lesser_percent || (equal_percent && lesser_epoch) {
                     min_index = index;
                     min_milestone = unlock_milestones_merged[index];
                 }
