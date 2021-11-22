@@ -114,6 +114,7 @@ pub trait LockedAssetTokenMergeModule:
         let mut array =
             ArrayVec::<EpochAmountPair<Self::Api>, DOUBLE_MAX_MILESTONES_IN_SCHEDULE>::new();
 
+        let mut sum = BigUint::zero();
         for locked_token in tokens.iter() {
             for milestone in locked_token
                 .attributes
@@ -132,17 +133,16 @@ pub trait LockedAssetTokenMergeModule:
                         &self.types().big_uint_from(PERCENTAGE_TOTAL as u64),
                         &locked_token.token_amount.amount,
                     ),
-                })
+                });
+                sum += &locked_token.token_amount.amount;
             }
         }
         array.sort_unstable_by(|a, b| a.epoch.cmp(&b.epoch));
 
-        let mut sum = BigUint::zero();
         let default = EpochAmountPair {
             epoch: 0u64,
             amount: BigUint::zero(),
         };
-
         let mut unlock_epoch_amount_merged =
             ArrayVec::<EpochAmountPair<Self::Api>, DOUBLE_MAX_MILESTONES_IN_SCHEDULE>::new();
         for elem in array.iter() {
@@ -158,8 +158,6 @@ pub trait LockedAssetTokenMergeModule:
             } else {
                 unlock_epoch_amount_merged.push(elem.clone());
             }
-
-            sum += &elem.amount;
         }
         require!(sum != 0u64, "Sum cannot be zero");
         require!(
