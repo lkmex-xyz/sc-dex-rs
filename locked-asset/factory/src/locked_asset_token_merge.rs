@@ -134,8 +134,8 @@ pub trait LockedAssetTokenMergeModule:
                         &locked_token.token_amount.amount,
                     ),
                 });
-                sum += &locked_token.token_amount.amount;
             }
+            sum += &locked_token.token_amount.amount;
         }
         array.sort_unstable_by(|a, b| a.epoch.cmp(&b.epoch));
 
