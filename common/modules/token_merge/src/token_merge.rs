@@ -11,7 +11,13 @@ pub struct ValueWeight<M: ManagedTypeApi> {
 
 #[elrond_wasm::module]
 pub trait TokenMergeModule {
-    fn rule_of_three(&self, part: &BigUint, total: &BigUint, value: &BigUint) -> BigUint {
+
+    #[inline]
+    fn rule_of_three(&self,
+        part: &BigUint,
+        total: &BigUint,
+        value: &BigUint,
+    ) -> BigUint {
         &(part * value) / total
     }
 

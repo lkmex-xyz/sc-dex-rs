@@ -77,13 +77,13 @@ pub trait RewardsModule:
     }
 
     fn update_reward_per_share(&self, reward_increase: &BigUint) {
-        let current = self.reward_per_share().get();
         let farm_token_supply = self.get_farm_token_supply();
 
         if farm_token_supply > 0 {
             let increase = self.calculate_reward_per_share_increase(reward_increase);
 
             if increase > 0 {
+                let current = self.reward_per_share().get();
                 self.reward_per_share().set(&(current + increase));
             }
         }

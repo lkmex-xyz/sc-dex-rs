@@ -26,6 +26,37 @@ type ClaimRewardsResultType<BigUint> =
 type ExitFarmResultType<BigUint> =
     MultiResult2<EsdtTokenPayment<BigUint>, EsdtTokenPayment<BigUint>>;
 
+pub struct ClaimRewardsContext<M: ManagedTypeApi> {
+    pub amount: BigUint<M>,
+    pub payments: ManagedVec<M, EsdtTokenPayment<M>>,
+    pub payment: EsdtTokenPayment<M>,
+    pub payment_token_nonce: Nonce,
+    pub reward_token_id: TokenIdentifier<M>,
+    pub farm_attributes: FarmTokenAttributes<M>,
+}
+
+impl<M: ManagedTypeApi> ClaimRewardsContext<M> {
+    fn calc_new_initial_farming_amount(
+        &self,
+    ) -> SCResult<BigUint<M>> {
+        let part = &self.amount;
+        let total = &self.farm_attributes.current_farm_amount;
+        let value = &self.farm_attributes.initial_farming_amount;
+        let res = &(part * value) / total;
+        require!(res != 0, "Rule of three result is zero");
+        Ok(res)
+    }
+
+    fn calc_new_compound_reward_amount(
+        &self,
+    ) -> BigUint<M> {
+        let part = &self.amount;
+        let total = &self.farm_attributes.current_farm_amount;
+        let value = &self.farm_attributes.compounded_reward;
+        &(part * value) / total
+    }
+}
+
 #[elrond_wasm::contract]
 pub trait Farm:
     rewards::RewardsModule
@@ -293,61 +324,45 @@ pub trait Farm:
         require!(self.is_active(), "Not active");
         require!(!self.farm_token_id().is_empty(), "No farm token");
 
-        let payments = self.get_all_payments_managed_vec();
-        require!(payments.len() >= 1, "bad payment len");
-        let payment_0 = payments.get(0).unwrap();
-
-        let payment_token_id = payment_0.token_identifier.clone();
-        let amount = payment_0.amount.clone();
-        let token_nonce = payment_0.token_nonce;
-
-        require!(amount > 0, "Zero amount");
         let farm_token_id = self.farm_token_id().get();
-        require!(payment_token_id == farm_token_id, "Unknown farm token");
-        let farm_attributes = self.get_farm_attributes(&payment_token_id, token_nonce)?;
+        let mut context = self.new_claim_rewards_context(&farm_token_id)?;
 
-        let mut reward_token_id = self.reward_token_id().get();
-        self.generate_aggregated_rewards(&reward_token_id);
+        self.generate_aggregated_rewards(&context.reward_token_id);
 
         let mut reward = self.calculate_reward(
-            &amount,
+            &context.amount,
             &self.reward_per_share().get(),
-            &farm_attributes.reward_per_share,
+            &context.farm_attributes.reward_per_share,
         );
         if reward > 0 {
             self.decrease_reward_reserve(&reward)?;
         }
 
-        let new_initial_farming_amount = self.rule_of_three_non_zero_result(
-            &amount,
-            &farm_attributes.current_farm_amount,
-            &farm_attributes.initial_farming_amount,
-        )?;
-        let new_compound_reward_amount = self.rule_of_three(
-            &amount,
-            &farm_attributes.current_farm_amount,
-            &farm_attributes.compounded_reward,
-        );
+        let new_initial_farming_amount = context.calc_new_initial_farming_amount()?;
+        let new_compound_reward_amount = context.calc_new_compound_reward_amount();
 
         let new_attributes = FarmTokenAttributes {
             reward_per_share: self.reward_per_share().get(),
-            entering_epoch: farm_attributes.entering_epoch,
-            original_entering_epoch: farm_attributes.original_entering_epoch,
-            apr_multiplier: farm_attributes.apr_multiplier,
-            with_locked_rewards: farm_attributes.with_locked_rewards,
+            entering_epoch: context.farm_attributes.entering_epoch,
+            original_entering_epoch: context.farm_attributes.original_entering_epoch,
+            apr_multiplier: context.farm_attributes.apr_multiplier,
+            with_locked_rewards: context.farm_attributes.with_locked_rewards,
             initial_farming_amount: new_initial_farming_amount,
             compounded_reward: new_compound_reward_amount,
-            current_farm_amount: amount.clone(),
+            current_farm_amount: context.amount.clone(),
         };
 
         let caller = self.blockchain().get_caller();
-        self.burn_farm_tokens(&payment_token_id, token_nonce, &amount)?;
-        let farm_amount = amount.clone();
+        self.burn_farm_tokens(
+            &farm_token_id,
+            context.payment_token_nonce,
+            &context.amount)?;
+        let farm_amount = context.amount.clone();
         let (new_farm_token, created_with_merge) = self.create_farm_tokens_by_merging(
             &farm_amount,
             &farm_token_id,
             &new_attributes,
-            &self.manage_vec_remove_index(&payments, 0),
+            &self.manage_vec_remove_index(&context.payments, 0),
         )?;
         self.transfer_execute_custom(
             &caller,
@@ -360,36 +375,65 @@ pub trait Farm:
         // Send rewards
         let mut reward_nonce = 0u64;
         self.send_rewards(
-            &mut reward_token_id,
+            &mut context.reward_token_id,
             &mut reward_nonce,
             &mut reward,
             &caller,
-            farm_attributes.with_locked_rewards,
-            farm_attributes.original_entering_epoch,
+            context.farm_attributes.with_locked_rewards,
+            context.farm_attributes.original_entering_epoch,
             &opt_accept_funds_func,
         )?;
 
         self.emit_claim_rewards_event(
             &caller,
             &farm_token_id,
-            token_nonce,
-            &amount,
+            context.payment_token_nonce,
+            &context.amount,
             &new_farm_token.token_amount.token_identifier,
             new_farm_token.token_amount.token_nonce,
             &new_farm_token.token_amount.amount,
             &self.get_farm_token_supply(),
-            &reward_token_id,
+            &context.reward_token_id,
             reward_nonce,
             &reward,
             &self.reward_reserve().get(),
-            &farm_attributes,
+            &context.farm_attributes,
             &new_farm_token.attributes,
             created_with_merge,
         );
         Ok(MultiResult2::from((
             new_farm_token.token_amount,
-            self.create_payment(&reward_token_id, reward_nonce, &reward),
+            self.create_payment(&context.reward_token_id, reward_nonce, &reward),
         )))
+    }
+
+    fn new_claim_rewards_context(
+        &self,
+        farm_token_id: &TokenIdentifier,
+    ) -> SCResult<ClaimRewardsContext<Self::Api>> {
+        let payments = self.get_all_payments_managed_vec();
+        require!(payments.len() >= 1, "bad payment len");
+        let payment = payments.get(0).unwrap();
+        let amount = payment.amount.clone();
+        require!(amount > 0, "Zero amount");
+
+        let payment_token_id = payment.token_identifier.clone();
+        require!(&payment_token_id == farm_token_id, "Unknown farm token");
+
+        let payment_token_nonce = payment.token_nonce;
+        let reward_token_id = self.reward_token_id().get();
+        let farm_attributes = self.get_farm_attributes(&farm_token_id, payment_token_nonce)?;
+
+        let context = ClaimRewardsContext {
+            amount,
+            payments,
+            payment,
+            payment_token_nonce,
+            reward_token_id,
+            farm_attributes,
+        };
+
+        Ok(context)
     }
 
     #[payable("*")]
