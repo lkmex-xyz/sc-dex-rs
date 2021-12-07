@@ -9,15 +9,13 @@ pub mod farm_token_merge;
 mod rewards;
 
 use common_structs::{Epoch, FarmTokenAttributes, Nonce};
-use config::State;
 use farm_token::FarmToken;
 
 elrond_wasm::imports!();
 elrond_wasm::derive_imports!();
 
 use crate::config::{
-    DEFAULT_LOCKED_REWARDS_LIQUIDITY_MUTIPLIER, DEFAULT_MINUMUM_FARMING_EPOCHS,
-    DEFAULT_PENALTY_PERCENT, DEFAULT_TRANSFER_EXEC_GAS_LIMIT, MAX_PENALTY_PERCENT,
+    MAX_PENALTY_PERCENT,
 };
 
 type EnterFarmResultType<BigUint> = EsdtTokenPayment<BigUint>;
@@ -46,54 +44,7 @@ pub trait Farm:
     #[init]
     fn init(
         &self,
-        router_address: ManagedAddress,
-        reward_token_id: TokenIdentifier,
-        farming_token_id: TokenIdentifier,
-        locked_asset_factory_address: ManagedAddress,
-        division_safety_constant: BigUint,
-        pair_contract_address: ManagedAddress,
     ) -> SCResult<()> {
-        require!(
-            reward_token_id.is_esdt(),
-            "Reward token ID is not a valid esdt identifier"
-        );
-        require!(
-            farming_token_id.is_esdt(),
-            "Farming token ID is not a valid esdt identifier"
-        );
-        require!(
-            division_safety_constant != 0,
-            "Division constant cannot be 0"
-        );
-        let farm_token = self.farm_token_id().get();
-        require!(
-            reward_token_id != farm_token,
-            "Reward token ID cannot be farm token ID"
-        );
-        require!(
-            farming_token_id != farm_token,
-            "Farming token ID cannot be farm token ID"
-        );
-
-        self.state().set_if_empty(&State::Active);
-        self.penalty_percent()
-            .set_if_empty(&DEFAULT_PENALTY_PERCENT);
-        self.locked_rewards_apr_multiplier()
-            .set_if_empty(&DEFAULT_LOCKED_REWARDS_LIQUIDITY_MUTIPLIER);
-        self.minimum_farming_epochs()
-            .set_if_empty(&DEFAULT_MINUMUM_FARMING_EPOCHS);
-        self.transfer_exec_gas_limit()
-            .set_if_empty(&DEFAULT_TRANSFER_EXEC_GAS_LIMIT);
-        self.division_safety_constant()
-            .set_if_empty(&division_safety_constant);
-
-        self.owner().set(&self.blockchain().get_caller());
-        self.router_address().set(&router_address);
-        self.reward_token_id().set(&reward_token_id);
-        self.farming_token_id().set(&farming_token_id);
-        self.locked_asset_factory_address()
-            .set(&locked_asset_factory_address);
-        self.pair_contract_address().set(&pair_contract_address);
         Ok(())
     }
 
@@ -204,6 +155,7 @@ pub trait Farm:
         #[payment_amount] amount: BigUint,
         #[var_args] opt_accept_funds_func: OptionalArg<ManagedBuffer>,
     ) -> SCResult<ExitFarmResultType<Self::Api>> {
+        require!(self.is_active(), "Not active");
         require!(!self.farm_token_id().is_empty(), "No farm token");
 
         let farm_token_id = self.farm_token_id().get();
@@ -278,6 +230,79 @@ pub trait Farm:
             &self.reward_reserve().get(),
             &farm_attributes,
         );
+        Ok(MultiResult2::from((
+            self.create_payment(&farming_token_id, 0, &initial_farming_token_amount),
+            self.create_payment(&reward_token_id, reward_nonce, &reward),
+        )))
+    }
+
+    #[payable("*")]
+    #[endpoint(exitFarmWithNoRewards)]
+    fn exit_farm_with_no_rewards(
+        &self,
+        #[payment_token] payment_token_id: TokenIdentifier,
+        #[payment_nonce] token_nonce: Nonce,
+        #[payment_amount] amount: BigUint,
+        #[var_args] opt_accept_funds_func: OptionalArg<ManagedBuffer>,
+    ) -> SCResult<ExitFarmResultType<Self::Api>> {
+        require!(self.is_active(), "Not active");
+        require!(!self.farm_token_id().is_empty(), "No farm token");
+
+        let farm_token_id = self.farm_token_id().get();
+        require!(payment_token_id == farm_token_id, "Bad input token");
+        require!(amount > 0, "Payment amount cannot be zero");
+
+        let farm_attributes = self.get_farm_attributes(&payment_token_id, token_nonce)?;
+        let farming_token_id = self.farming_token_id().get();
+        let initial_farming_token_amount = self.rule_of_three_non_zero_result(
+            &amount,
+            &farm_attributes.current_farm_amount,
+            &farm_attributes.initial_farming_amount,
+        )?;
+
+        let caller = self.blockchain().get_caller();
+        self.burn_farm_tokens(&payment_token_id, token_nonce, &amount);
+        self.send_back_farming_tokens(
+            &farming_token_id,
+            &initial_farming_token_amount,
+            &caller,
+            &opt_accept_funds_func,
+        )?;
+
+        let mut reward = self.rule_of_three(
+            &amount,
+            &farm_attributes.current_farm_amount,
+            &farm_attributes.compounded_reward,
+        );
+
+        let mut reward_token_id = self.reward_token_id().get();
+        let mut reward_nonce = 0u64;
+        self.send_rewards(
+            &mut reward_token_id,
+            &mut reward_nonce,
+            &mut reward,
+            &caller,
+            farm_attributes.with_locked_rewards,
+            farm_attributes.original_entering_epoch,
+            &opt_accept_funds_func,
+        )?;
+
+        self.emit_exit_farm_event(
+            &caller,
+            &farming_token_id,
+            &initial_farming_token_amount,
+            &self.farming_token_reserve().get(),
+            &farm_token_id,
+            token_nonce,
+            &amount,
+            &self.get_farm_token_supply(),
+            &reward_token_id,
+            reward_nonce,
+            &reward,
+            &self.reward_reserve().get(),
+            &farm_attributes,
+        );
+
         Ok(MultiResult2::from((
             self.create_payment(&farming_token_id, 0, &initial_farming_token_amount),
             self.create_payment(&reward_token_id, reward_nonce, &reward),

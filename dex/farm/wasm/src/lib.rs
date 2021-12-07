@@ -17,6 +17,7 @@ elrond_wasm_node::wasm_endpoints! {
         enterFarm
         enterFarmAndLockRewards
         exitFarm
+        exitFarmWithNoRewards
         getBurnedTokenAmount
         getCurrentBlockFee
         getDivisionSafetyConstant
@@ -42,6 +43,7 @@ elrond_wasm_node::wasm_endpoints! {
         getUndistributedFees
         mergeFarmTokens
         pause
+        recalibrate_farm_token_supply
         registerFarmToken
         resume
         setLocalRolesFarmToken
