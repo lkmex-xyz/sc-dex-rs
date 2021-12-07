@@ -80,9 +80,9 @@ pub trait ConfigModule: token_send::TokenSendModule {
     }
 
     #[endpoint]
-    fn recalibrate_farm_token_supply(&self, amount: BigUint) -> SCResult<()> {
+    fn recalibrate_farm_token_supply(&self, new_supply: BigUint) -> SCResult<()> {
         self.require_permissions()?;
-        self.farm_token_supply().set(&amount);
+        self.farm_token_supply().set(&new_supply);
         Ok(())
     }
 

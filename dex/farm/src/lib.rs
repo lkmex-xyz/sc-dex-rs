@@ -689,7 +689,8 @@ pub trait Farm:
     fn calculate_rewards_for_given_position(
         &self,
         amount: BigUint,
-        attributes_raw: ManagedBuffer,
+        reward_per_share: BigUint,
+        entering_epoch: u64,
     ) -> SCResult<BigUint> {
         require!(amount > 0, "Zero liquidity input");
         let farm_token_supply = self.get_farm_token_supply();
@@ -715,15 +716,14 @@ pub trait Farm:
         let reward_increase = to_be_minted + fees;
         let reward_per_share_increase = self.calculate_reward_per_share_increase(&reward_increase);
 
-        let attributes = self.decode_attributes(&attributes_raw)?;
         let future_reward_per_share = self.reward_per_share().get() + reward_per_share_increase;
         let reward = self.calculate_reward(
             &amount,
             &future_reward_per_share,
-            &attributes.reward_per_share,
+            &reward_per_share,
         );
 
-        if self.should_apply_penalty(attributes.entering_epoch) {
+        if self.should_apply_penalty(entering_epoch) {
             Ok(&reward - &self.get_penalty_amount(&reward))
         } else {
             Ok(reward)
