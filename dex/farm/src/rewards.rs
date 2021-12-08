@@ -136,6 +136,11 @@ pub trait RewardsModule:
 
     #[endpoint]
     fn start_produce_rewards(&self) -> SCResult<()> {
+        self.start_produce_rewards_from_nonce(self.blockchain().get_block_nonce())
+    }
+
+    #[endpoint]
+    fn start_produce_rewards_from_nonce(&self, start_nonce: u64) -> SCResult<()> {
         self.require_permissions()?;
         require!(
             self.per_block_reward_amount().get() != 0,
@@ -145,9 +150,8 @@ pub trait RewardsModule:
             !self.produce_rewards_enabled().get(),
             "Producing rewards is already enabled"
         );
-        let current_nonce = self.blockchain().get_block_nonce();
         self.produce_rewards_enabled().set(&true);
-        self.last_reward_block_nonce().set(&current_nonce);
+        self.last_reward_block_nonce().set(&start_nonce);
         Ok(())
     }
 
