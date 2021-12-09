@@ -148,6 +148,29 @@ pub trait ProxyFarmModule:
         #[payment_amount] amount: BigUint,
         farm_address: &ManagedAddress,
     ) -> SCResult<()> {
+        self.internal_exit_farm(token_id, token_nonce, amount, farm_address, false)
+    }
+
+    #[payable("*")]
+    #[endpoint(exitFarmProxyWithNoRewards)]
+    fn exit_farm_proxy_with_no_rewards(
+        &self,
+        #[payment_token] token_id: TokenIdentifier,
+        #[payment_nonce] token_nonce: Nonce,
+        #[payment_amount] amount: BigUint,
+        farm_address: &ManagedAddress,
+    ) -> SCResult<()> {
+        self.internal_exit_farm(token_id, token_nonce, amount, farm_address, true)
+    }
+
+    fn internal_exit_farm(
+        &self,
+        token_id: TokenIdentifier,
+        token_nonce: Nonce,
+        amount: BigUint,
+        farm_address: &ManagedAddress,
+        no_rewards: bool,
+    ) -> SCResult<()> {
         self.require_is_intermediated_farm(farm_address)?;
         self.require_wrapped_farm_token_id_not_empty()?;
         self.require_wrapped_lp_token_id_not_empty()?;
@@ -164,7 +187,7 @@ pub trait ProxyFarmModule:
         let farm_token_nonce = wrapped_farm_token_attrs.farm_token_nonce;
 
         let farm_result = self
-            .actual_exit_farm(farm_address, &farm_token_id, farm_token_nonce, &amount)
+            .actual_exit_farm(farm_address, &farm_token_id, farm_token_nonce, &amount, no_rewards)
             .into_tuple();
         let farming_token_returned = farm_result.0;
         let reward_token_returned = farm_result.1;
@@ -447,8 +470,19 @@ pub trait ProxyFarmModule:
         farm_token_id: &TokenIdentifier,
         farm_token_nonce: Nonce,
         amount: &BigUint,
+        no_rewards: bool,
     ) -> ExitFarmResultType<Self::Api> {
-        self.farm_contract_proxy(farm_address.clone())
+        if no_rewards {
+            self.farm_contract_proxy(farm_address.clone())
+            .exit_farm_with_no_rewards(
+                farm_token_id.clone(),
+                farm_token_nonce,
+                amount.clone(),
+                OptionalArg::None,
+            )
+            .execute_on_dest_context_custom_range(|_, after| (after - 2, after))
+        } else {
+            self.farm_contract_proxy(farm_address.clone())
             .exit_farm(
                 farm_token_id.clone(),
                 farm_token_nonce,
@@ -456,6 +490,7 @@ pub trait ProxyFarmModule:
                 OptionalArg::None,
             )
             .execute_on_dest_context_custom_range(|_, after| (after - 2, after))
+        }
     }
 
     fn actual_claim_rewards(
