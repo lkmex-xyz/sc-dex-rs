@@ -136,7 +136,7 @@ pub trait LockedAssetModule: token_send::TokenSendModule {
             let mut max_rounding_error_index = 0;
             for index in 0..unlock_milestones_merged.len() {
                 let rounding_error = unlock_milestones_merged[index].unlock_percent % 10_000u64;
-                if rounding_error > max_rounding_error {
+                if rounding_error >= max_rounding_error {
                     max_rounding_error = rounding_error;
                     max_rounding_error_index = index;
                 }
