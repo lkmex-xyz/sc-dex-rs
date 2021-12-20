@@ -127,7 +127,7 @@ pub trait LockedAssetModule: token_send::TokenSendModule {
     ) {
         let mut sum_of_new_percents = 0u8;
         for milestone in unlock_milestones_merged.iter() {
-            sum_of_new_percents += (milestone.unlock_percent / 1_000u64) as u8;
+            sum_of_new_percents += (milestone.unlock_percent / 10_000u64) as u8;
         }
         let mut leftover = PERCENTAGE_TOTAL as u8 - sum_of_new_percents;
 
@@ -135,7 +135,7 @@ pub trait LockedAssetModule: token_send::TokenSendModule {
             let mut max_rounding_error = 0;
             let mut max_rounding_error_index = 0;
             for index in 0..unlock_milestones_merged.len() {
-                let rounding_error = unlock_milestones_merged[index].unlock_percent % 1_000u64;
+                let rounding_error = unlock_milestones_merged[index].unlock_percent % 10_000u64;
                 if rounding_error > max_rounding_error {
                     max_rounding_error = rounding_error;
                     max_rounding_error_index = index;
@@ -144,9 +144,9 @@ pub trait LockedAssetModule: token_send::TokenSendModule {
 
             leftover -= 1;
             unlock_milestones_merged[max_rounding_error_index].unlock_percent =
-                ((unlock_milestones_merged[max_rounding_error_index].unlock_percent / 1_000u64)
+                ((unlock_milestones_merged[max_rounding_error_index].unlock_percent / 10_000u64)
                     + 1)
-                    * 1_000u64;
+                    * 10_000u64;
         }
     }
 
@@ -157,7 +157,7 @@ pub trait LockedAssetModule: token_send::TokenSendModule {
         let mut new_unlock_milestones = ManagedVec::new();
 
         for el in unlock_milestones_merged.iter() {
-            let percent_rounded = (el.unlock_percent / 1_000u64) as u8;
+            let percent_rounded = (el.unlock_percent / 10_000u64) as u8;
             if percent_rounded != 0 {
                 new_unlock_milestones.push(UnlockMilestone {
                     unlock_epoch: el.unlock_epoch,
