@@ -1,7 +1,7 @@
 elrond_wasm::imports!();
 elrond_wasm::derive_imports!();
 
-use common_structs::{LockedAssetTokenAttributes, UnlockMilestone, UnlockSchedule};
+use common_structs::*;
 
 use super::locked_asset;
 use super::locked_asset::{
@@ -101,15 +101,15 @@ pub trait LockedAssetTokenMergeModule:
         amount_total: &BigUint,
     ) -> ManagedVec<UnlockMilestone> {
         let mut unlock_milestones_merged =
-            ArrayVec::<UnlockMilestone, MAX_MILESTONES_IN_SCHEDULE>::new();
+            ArrayVec::<UnlockMilestoneExtended, MAX_MILESTONES_IN_SCHEDULE>::new();
 
         for el in unlock_epoch_amount_merged.iter() {
-            let unlock_percent = &(&el.amount * PERCENTAGE_TOTAL) / amount_total;
+            let unlock_percent = &(&el.amount * 1_000_000u64) / amount_total;
 
             //Accumulate even the percents of 0
-            unlock_milestones_merged.push(UnlockMilestone {
+            unlock_milestones_merged.push(UnlockMilestoneExtended {
                 unlock_epoch: el.epoch,
-                unlock_percent: unlock_percent.to_u64().unwrap() as u8,
+                unlock_percent: unlock_percent.to_u64().unwrap(),
             })
         }
 
