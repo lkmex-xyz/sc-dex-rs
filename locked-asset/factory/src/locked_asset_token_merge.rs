@@ -6,7 +6,7 @@ use common_structs::*;
 use super::locked_asset;
 use super::locked_asset::{
     EpochAmountPair, LockedToken, DOUBLE_MAX_MILESTONES_IN_SCHEDULE, MAX_MILESTONES_IN_SCHEDULE,
-    PERCENTAGE_TOTAL,
+    ONE_MILLION, PERCENTAGE_TOTAL,
 };
 
 #[elrond_wasm::module]
@@ -104,7 +104,7 @@ pub trait LockedAssetTokenMergeModule:
             ArrayVec::<UnlockMilestoneExtended, MAX_MILESTONES_IN_SCHEDULE>::new();
 
         for el in unlock_epoch_amount_merged.iter() {
-            let unlock_percent = &(&el.amount * 1_000_000u64) / amount_total;
+            let unlock_percent = &(&el.amount * ONE_MILLION) / amount_total;
 
             //Accumulate even the percents of 0
             unlock_milestones_merged.push(UnlockMilestoneExtended {

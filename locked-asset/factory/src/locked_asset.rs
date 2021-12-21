@@ -3,6 +3,8 @@ elrond_wasm::derive_imports!();
 
 use common_structs::*;
 
+pub const ONE_MILLION: u64 = 1_000_000u64;
+pub const TEN_THOUSAND: u64 = 10_000u64;
 pub const PERCENTAGE_TOTAL: u64 = 100;
 pub const MAX_MILESTONES_IN_SCHEDULE: usize = 64;
 pub const DOUBLE_MAX_MILESTONES_IN_SCHEDULE: usize = 2 * MAX_MILESTONES_IN_SCHEDULE;
@@ -106,7 +108,7 @@ pub trait LockedAssetModule: token_send::TokenSendModule {
         for old_milestone in old_unlock_milestones.iter() {
             if old_milestone.unlock_epoch > current_epoch {
                 let new_unlock_percent: u64 =
-                    (old_milestone.unlock_percent as u64) * 1_000_000u64 / unlock_percent_remaining;
+                    (old_milestone.unlock_percent as u64) * ONE_MILLION / unlock_percent_remaining;
                 unlock_milestones_merged.push(UnlockMilestoneExtended {
                     unlock_epoch: old_milestone.unlock_epoch,
                     unlock_percent: new_unlock_percent,
@@ -127,7 +129,7 @@ pub trait LockedAssetModule: token_send::TokenSendModule {
     ) {
         let mut sum_of_new_percents = 0u8;
         for milestone in unlock_milestones_merged.iter() {
-            sum_of_new_percents += (milestone.unlock_percent / 10_000u64) as u8;
+            sum_of_new_percents += (milestone.unlock_percent / TEN_THOUSAND) as u8;
         }
         let mut leftover = PERCENTAGE_TOTAL as u8 - sum_of_new_percents;
 
@@ -135,7 +137,7 @@ pub trait LockedAssetModule: token_send::TokenSendModule {
             let mut max_rounding_error = 0;
             let mut max_rounding_error_index = 0;
             for index in 0..unlock_milestones_merged.len() {
-                let rounding_error = unlock_milestones_merged[index].unlock_percent % 10_000u64;
+                let rounding_error = unlock_milestones_merged[index].unlock_percent % TEN_THOUSAND;
                 if rounding_error >= max_rounding_error {
                     max_rounding_error = rounding_error;
                     max_rounding_error_index = index;
@@ -144,9 +146,10 @@ pub trait LockedAssetModule: token_send::TokenSendModule {
 
             leftover -= 1;
             unlock_milestones_merged[max_rounding_error_index].unlock_percent =
-                ((unlock_milestones_merged[max_rounding_error_index].unlock_percent / 10_000u64)
+                ((unlock_milestones_merged[max_rounding_error_index].unlock_percent
+                    / TEN_THOUSAND)
                     + 1)
-                    * 10_000u64;
+                    * TEN_THOUSAND;
         }
     }
 
@@ -157,7 +160,7 @@ pub trait LockedAssetModule: token_send::TokenSendModule {
         let mut new_unlock_milestones = ManagedVec::new();
 
         for el in unlock_milestones_merged.iter() {
-            let percent_rounded = (el.unlock_percent / 10_000u64) as u8;
+            let percent_rounded = (el.unlock_percent / TEN_THOUSAND) as u8;
             if percent_rounded != 0 {
                 new_unlock_milestones.push(UnlockMilestone {
                     unlock_epoch: el.unlock_epoch,
