@@ -56,7 +56,7 @@ fn test_unlock_100mil_1mil() {
                         },
                         UnlockMilestone {
                             unlock_epoch: 510,
-                            unlock_percent: 16,
+                            unlock_percent: 15,
                         },
                     ]),
                 },
@@ -111,7 +111,7 @@ fn test_unlock_100mil_1mil() {
 
         let el = result.get(0).unwrap();
         assert_eq!(el.unlock_epoch, 0);
-        assert_eq!(el.unlock_percent, 9);
+        assert_eq!(el.unlock_percent, 10);
 
         let el = result.get(1).unwrap();
         assert_eq!(el.unlock_epoch, 360);
@@ -135,7 +135,7 @@ fn test_unlock_100mil_1mil() {
 
         let el = result.get(6).unwrap();
         assert_eq!(el.unlock_epoch, 510);
-        assert_eq!(el.unlock_percent, 16);
+        assert_eq!(el.unlock_percent, 15);
     });
 }
 
@@ -187,7 +187,7 @@ fn test_unlock_1mil_100mil() {
                         },
                         UnlockMilestone {
                             unlock_epoch: 510,
-                            unlock_percent: 16,
+                            unlock_percent: 15,
                         },
                     ]),
                 },
@@ -314,7 +314,7 @@ fn test_unlock_60_40() {
                         },
                         UnlockMilestone {
                             unlock_epoch: 510,
-                            unlock_percent: 16,
+                            unlock_percent: 15,
                         },
                     ]),
                 },
@@ -445,7 +445,7 @@ fn test_unlock_40_60() {
                         },
                         UnlockMilestone {
                             unlock_epoch: 510,
-                            unlock_percent: 16,
+                            unlock_percent: 15,
                         },
                     ]),
                 },
@@ -504,7 +504,7 @@ fn test_unlock_40_60() {
 
         let el = result.get(1).unwrap();
         assert_eq!(el.unlock_epoch, 360);
-        assert_eq!(el.unlock_percent, 15);
+        assert_eq!(el.unlock_percent, 16);
 
         let el = result.get(2).unwrap();
         assert_eq!(el.unlock_epoch, 390);
@@ -524,6 +524,6 @@ fn test_unlock_40_60() {
 
         let el = result.get(6).unwrap();
         assert_eq!(el.unlock_epoch, 510);
-        assert_eq!(el.unlock_percent, 17);
+        assert_eq!(el.unlock_percent, 16);
     });
 }
