@@ -11,8 +11,8 @@ mod lp_tokens;
 mod pair_manager;
 mod state;
 
-const DEFAULT_TOTAL_FEE_PERCENT: u64 = 300;
-const DEFAULT_SPECIAL_FEE_PERCENT: u64 = 50;
+const DEFAULT_TOTAL_FEE_PERCENT: u64 = 3000;
+const DEFAULT_SPECIAL_FEE_PERCENT: u64 = 0;
 const MAX_TOTAL_FEE_PERCENT: u64 = 100_000;
 
 #[elrond_wasm::contract]
